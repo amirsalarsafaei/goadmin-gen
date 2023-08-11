@@ -1,0 +1,20 @@
+{{- /*gotype: goadmin-gen/internal/config.GoAdminGen*/ -}}
+version: "2"
+sql:
+{{- $schema := .Sqlc.Schema}}
+{{- $out := .Out}}
+{{- range .Tables }}
+  {{- $name := (lower .Display)}}
+  - schema: {{ $schema }}
+    queries: {{printf "%s/queries" $name}}
+    engine: "postgresql"
+    gen:
+      go:
+        out: {{printf "%s" $name}}
+        emit_interface: true
+        emit_json_tags: true
+        emit_db_tags: true
+        emit_methods_with_db_argument: true
+        omit_unused_structs: true
+        sql_package: "pgx/v5"
+{{- end }}

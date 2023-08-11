@@ -1,0 +1,97 @@
+{{- /*gotype: goadmin-gen/internal/config.TableConfig*/ -}}
+package admin
+
+import (
+   "context"
+   	"os"
+   	"path"
+   	"path/filepath"
+   	"strconv"
+
+   	adminContext "github.com/GoAdminGroup/go-admin/context"
+   	"github.com/GoAdminGroup/go-admin/modules/db"
+   	"github.com/GoAdminGroup/go-admin/plugins/admin/models"
+   	adminPluginForm "github.com/GoAdminGroup/go-admin/plugins/admin/modules/form"
+   	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/parameter"
+   	"github.com/GoAdminGroup/go-admin/plugins/admin/modules/table"
+   	"github.com/GoAdminGroup/go-admin/template/types"
+   	"github.com/GoAdminGroup/go-admin/template/types/form"
+   	"github.com/jackc/pgx/v5/pgtype"
+   	"github.com/pkg/errors"
+   	"github.com/samber/lo"
+   	log "github.com/sirupsen/logrus"
+
+   	"goadmin-gen/pkg/gohadmin"
+)
+
+{{ $name := (printf "%s Table" .Display ) }}
+
+type {{ $name | lowerCamel }} struct {
+    controller gohadmin.TableController
+}
+
+func New{{ $name | camel }}(controller gohadmin.TableController) gohadmin.Table {
+    return &{{ $name | lowerCamel  }} {
+        controller: controller,
+    }
+}
+
+func (t *{{ $name | lowerCamel }}) GetTable(adminCtx *adminContext.Context) table.Table {
+    user, ok := gohadmin.GetCurrentUser(adminCtx)
+    if !ok {
+        return nil
+    }
+
+	ctx := gohadmin.GetContext(adminCtx)
+
+    cfg := gohadmin.CustomTableConfig{
+        Config: &table.Config{
+            Driver:     "postgresql",
+            Connection: table.DefaultConnectionName,
+            {{- if sliceContains "NonExportable" .Options }}
+            Exportable: false,
+            {{- else }}
+            Exportable: true,
+            {{- end }}
+            {{- if sliceContains "OnlyAdminEdit" .Options }}
+            Editable:   user.CheckRole(gohadmin.AdministratorRoleSlug),
+            {{- else }}
+            Editable:   true,
+            {{- end }}
+            {{- if sliceContains "OnlyAdminDelete" .Options }}
+            Deletable:  user.CheckRole(gohadmin.AdministratorRoleSlug),
+            {{- else }}
+            Deletable:  true,
+            {{- end }}
+            {{- if sliceContains "OnlyAdminAdd" .Options }}
+            CanAdd:     user.CheckRole(gohadmin.AdministratorRoleSlug),
+            {{- else }}
+            CanAdd:     true,
+            {{- end }}
+            PrimaryKey: table.PrimaryKey{
+                Type: db.{{- .PrimaryKey.TypeName }},
+                Name: "{{- .PrimaryKey.Name }}",
+            },
+        },
+        User:     user,
+        Controller: t.controller,
+    }
+    table := gohadmin.NewCustomTable(ctx, cfg)
+
+    info := table.GetInfo()
+    t.configureInfo(info, user.CheckRole(gohadmin.AdministratorRoleSlug))
+
+}
+
+func (t *{{ $name | lowerCamel }}) configureInfo(info *types.InfoPanel, isAdmin bool) {
+    {{- range .Fields }}
+    {{- if .OnlyAdmin }}
+    if isAdmin {
+        info.AddField("{{ .Display }}", "{{ .Column }}", db.{{ .TypeName }})
+    }
+    {{- else }}
+
+    info.AddField({{- if ne .Display "" -}}"{{ .Display }}"{{- else -}}"{{ .Column }}"{{- end -}}, "{{ .Column }}", db.{{ .TypeName }})
+    {{ end }}
+    {{- end }}
+}

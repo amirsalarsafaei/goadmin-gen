@@ -1,0 +1,14 @@
+{{- /*gotype: goadmin-gen/internal/config.TableConfig*/ -}}
+-- name: Get{{- .Display -}}s :many
+select
+{{- $len := len .Fields -}}
+{{- range $i, $item := .Fields }} {{ $item.Column -}}{{- if ne $i (sub $len 1) -}}, {{- end -}}{{- end }}
+from {{ .Table }}
+order by {{ .PrimaryKey.Name }}
+limit $1;
+
+-- name: Delete{{- .Display }} :exec
+delete
+from {{ .Table }}
+where {{ .PrimaryKey.Name }} = $1;
+

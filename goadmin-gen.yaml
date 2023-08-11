@@ -1,0 +1,24 @@
+tables:
+  - table: apps_apps
+    display: App
+    options:
+      - OnlyAdminAdd
+    primary_key:
+      name: id
+      type: Int
+    fields:
+      - column: id
+        display: ID
+        form:
+          - DisableWhenCreate
+          - DisplayButCanNotEditWhenUpdate
+        type: Int
+      - column: display
+        type: Varchar
+        only_admin: true
+      - column: slug
+        type: Varchar
+sqlc:
+  schema: ./migrations
+out:
+  ./out_test
